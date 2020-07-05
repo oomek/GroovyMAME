@@ -25,6 +25,9 @@
 #include <iterator>
 #include <limits>
 
+#include <rendutil.h> // remove later
+#include "emu.h" // remove later
+#include "png.h" // remove later
 
 #define VERBOSE 0
 
@@ -478,6 +481,24 @@ inline const char *next_line(const char *ptr)
 
 inline render_font::glyph &render_font::get_char(char32_t chnum)
 {
+	// translate unicode chars to Latin-1 available in CRT glyph table
+	if (m_format == format::CRT)
+	{
+		if (chnum > 255)
+		{
+			// osd_printf_error("get_ch: %d %d\n", (int)m_format, chnum);
+			// if (chnum == 57487) chnum = 0xFF; //-unknown
+			if (chnum == 8230) chnum = 133; // horizontal ellipsis
+			if (chnum == 57493) chnum = 1; // diamond
+			if (chnum == 9472) chnum = 2; // box drawings light horizontal
+			if (chnum == 9675) chnum = 3; // white circle
+			if (chnum == 9678) chnum = 4; // bullseye
+			if (chnum == 9679) chnum = 5; // black circle
+			if (chnum == 9734) chnum = 6; // white star
+		}
+		// if (chnum > 255) chnum = 255;
+	}
+
 	static glyph dummy_glyph;
 
 	unsigned const page(chnum / 256);
@@ -491,7 +512,7 @@ inline render_font::glyph &render_font::get_char(char32_t chnum)
 	else if (!m_glyphs[page])
 	{
 		//mamep: make table for command glyph
-		if ((m_format == format::OSD) || ((chnum >= COMMAND_UNICODE) && (chnum < COMMAND_UNICODE + MAX_GLYPH_FONT)))
+		if (((m_format == format::OSD) || (m_format == format::CRT)) || ((chnum >= COMMAND_UNICODE) && (chnum < COMMAND_UNICODE + MAX_GLYPH_FONT)))
 			m_glyphs[page] = new glyph[256];
 		else if ((0 <= m_defchar) && (chnum != m_defchar))
 			return get_char(m_defchar);
@@ -517,21 +538,32 @@ inline render_font::glyph &render_font::get_char(char32_t chnum)
 			//mamep: for color glyph
 			gl.color = glyph_ch.color;
 
-			gl.width = int(glyph_ch.width * scale + 0.5f);
-			gl.xoffs = int(glyph_ch.xoffs * scale + 0.5f);
-			gl.yoffs = int(glyph_ch.yoffs * scale + 0.5f);
-			gl.bmwidth = int(glyph_ch.bmwidth * scale + 0.5f);
-			gl.bmheight = int(glyph_ch.bmheight * scale + 0.5f);
+			if (m_format == format::CRT)
+			{
+				gl.width = glyph_ch.width;
+				gl.xoffs = glyph_ch.xoffs;
+				gl.yoffs = glyph_ch.yoffs + 1; // fixes offset to crt font
+				gl.bmwidth = glyph_ch.bmwidth;
+				gl.bmheight = glyph_ch.bmheight;
+				gl.texture = m_manager.texture_alloc(nullptr);
+				gl.texture->set_bitmap(glyph_ch.bitmap, glyph_ch.bitmap.cliprect(), TEXFORMAT_ARGB32);
+			}
+			else
+			{
+				gl.width = int(glyph_ch.width * scale + 0.5f);
+				gl.xoffs = int(glyph_ch.xoffs * scale + 0.5f);
+				gl.yoffs = int(glyph_ch.yoffs * scale + 0.5f);
+				gl.bmwidth = int(glyph_ch.bmwidth * scale + 0.5f);
+				gl.bmheight = int(glyph_ch.bmheight * scale + 0.5f);
 
-			gl.bitmap.allocate(gl.bmwidth, gl.bmheight);
-			rectangle clip(
-					0, glyph_ch.bitmap.width() - 1,
-					0, glyph_ch.bitmap.height() - 1);
-			render_texture::hq_scale(gl.bitmap, glyph_ch.bitmap, clip, nullptr);
-
-			/* wrap a texture around the bitmap */
-			gl.texture = m_manager.texture_alloc(render_texture::hq_scale);
-			gl.texture->set_bitmap(gl.bitmap, gl.bitmap.cliprect(), TEXFORMAT_ARGB32);
+				gl.bitmap.allocate(gl.bmwidth, gl.bmheight);
+				rectangle clip(
+						0, glyph_ch.bitmap.width() - 1,
+						0, glyph_ch.bitmap.height() - 1);
+				render_texture::hq_scale(gl.bitmap, glyph_ch.bitmap, clip, nullptr);
+				gl.texture = m_manager.texture_alloc(render_texture::hq_scale);
+				gl.texture->set_bitmap(gl.bitmap, gl.bitmap.cliprect(), TEXFORMAT_ARGB32);
+			}
 		}
 		else
 		{
@@ -563,9 +595,28 @@ render_font::render_font(render_manager &manager, const char *filename)
 	, m_osdfont()
 	, m_height_cmd(0)
 	, m_yoffs_cmd(0)
+	, m_crt_font()
 {
 	memset(m_glyphs, 0, sizeof(m_glyphs));
 	memset(m_glyphs_cmd, 0, sizeof(m_glyphs_cmd));
+
+	// if uifont is set as "crt", we are using a CRT optimized bitmap font
+	if (filename && !core_stricmp(filename, "crt"))
+	{
+		emu_file file(manager.machine().options().art_path(), OPEN_FLAG_READ);
+		render_load_png(m_crt_font, file, nullptr, "crt-font11.png");
+		if ((m_crt_font.width() > 0) && (m_crt_font.height() > 0) && !(m_crt_font.width() % 16) && !(m_crt_font.height() % 16))
+		{
+			osd_printf_error("CRT FONT LOADED %dx%d\n", m_crt_font.width() / 16, m_crt_font.height() / 16);
+			m_height = m_crt_font.height() / 16;
+			m_height_cmd = 14;
+			m_scale = 1.0f / float(m_height);
+			m_format = format::CRT;
+			render_font_command_glyph();
+			return;
+		}
+		osd_printf_error("CRT FONT FAILED: %dx%d\n", m_crt_font.width() / 16, m_crt_font.height() / 16);
+	}
 
 	// if this is an OSD font, we're done
 	if (filename)
@@ -657,7 +708,6 @@ void render_font::char_expand(char32_t chnum, glyph &gl)
 		// allocate a new bitmap of the size we need
 		gl.bitmap.allocate(gl.bmwidth, m_height_cmd);
 		gl.bitmap.fill(0);
-
 		// extract the data
 		const char *ptr = gl.rawdata;
 		u8 accum = 0, accumbit = 7;
@@ -676,6 +726,80 @@ void render_font::char_expand(char32_t chnum, glyph &gl)
 				}
 			}
 		}
+		// DUMP ALL RAW DATA
+			// emu_file file("", OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
+			// std::string filename= util::string_format("%s" PATH_SEPARATOR "%s.png", "dump", chnum);
+			// file.open(filename);
+			// png_write_bitmap(file, nullptr, gl.bitmap, 0, nullptr);
+			// osd_printf_error("png_write_bitmap: %s\n", filename);
+			// file.close();
+	}
+	else if (m_format == format::CRT)
+	{
+		// if (0 > gl.bmwidth)
+		// {
+		// 	// we set bmwidth to -1 if we've previously queried and failed
+		// 	osd_printf_error("render_font::char_expand: previously failed to get bitmap from OSD font\n");
+		// 	return;
+		// }
+		// emu_file fontfile(".", OPEN_FLAG_READ);
+		// std::string fontfilename = util::string_format("%s" PATH_SEPARATOR "%s.png", "glyphs", chnum);
+		// if(!render_load_png(gl.bitmap, fontfile, nullptr, fontfilename.c_str(), false))
+		// {
+		// 	osd_printf_error("Missing: %c - %d %s\n", chnum, chnum, fontfilename.c_str());
+		// 	std::string fontfilename = util::string_format("%s" PATH_SEPARATOR "83.png", "glyphs", chnum);
+		// 	render_load_png(gl.bitmap, fontfile, nullptr, fontfilename.c_str(), true);
+		// }
+
+
+		if (chnum > 255)
+		{
+			osd_printf_error("Missing glyph: %c - %d\n", chnum, chnum);
+			chnum = 255;
+		}
+
+		int cellwidth = m_crt_font.width() / 16;
+		int chadvance = 0;
+		int chposx = (chnum % 16) * cellwidth;
+		int chposy = (chnum / 16) * m_height;
+
+		// calculate glyph advance from the atlas
+		for (int x = 0; x < cellwidth; x++)
+		{
+			uint32_t *src = &m_crt_font.pix32(chposy, chposx + x);
+			// osd_printf_error("%u ", src[0] & 0xff);
+			if ((src[0] & 0xFF) > 0) break;
+			chadvance++;
+		}
+		// osd_printf_error("advance: %d\n", chadvance);
+
+		gl.bitmap.allocate(chadvance, m_height);
+		gl.bitmap.fill(rgb_t(0xff, 0xff, 0xff, 0xff));
+
+		// copy glyph data from the atlas
+		for (int y = 0; y < m_height; y++)
+		{
+			uint32_t *srcrow = &m_crt_font.pix32(chposy + y, chposx);
+			uint32_t *dstrow = &gl.bitmap.pix32(y);
+			for (int x = 0; x < chadvance; x++)
+				dstrow[x] = rgb_t(srcrow[x] & 0xff, 0xff, 0xff, 0xff);
+		}
+
+		gl.width = gl.bitmap.width();
+		gl.xoffs = 0;
+		gl.yoffs = 0;
+
+		if (!gl.bitmap.valid())
+		{
+			gl.bitmap.reset();
+			gl.bmwidth = -1;
+			osd_printf_error("render_font::char_expand: bitmap invalid\n");
+			return;
+		}
+		gl.bmwidth = gl.bitmap.width();
+		gl.bmheight = gl.bitmap.height();
+		osd_printf_error("Loaded: %d %dx%d\n", chnum, gl.bmwidth, gl.bmheight);
+		osd_printf_error("pos: %d %d advance: %d\n\n", chposx, chposy, chadvance);
 	}
 	else if (m_format == format::OSD)
 	{
@@ -775,7 +899,11 @@ void render_font::char_expand(char32_t chnum, glyph &gl)
 	}
 
 	// wrap a texture around the bitmap
-	gl.texture = m_manager.texture_alloc(render_texture::hq_scale);
+	if (m_format == format::CRT)
+		gl.texture = m_manager.texture_alloc(nullptr);
+	else
+		gl.texture = m_manager.texture_alloc(render_texture::hq_scale);
+
 	gl.texture->set_bitmap(gl.bitmap, gl.bitmap.cliprect(), TEXFORMAT_ARGB32);
 }
 
@@ -793,11 +921,14 @@ render_texture *render_font::get_char_texture_and_bounds(float height, float asp
 	// on entry, assume x0,y0 are the top,left coordinate of the cell and add
 	// the character bounding box to that position
 	float scale = m_scale * height;
-	bounds.x0 += float(gl.xoffs) * scale * aspect;
-
+	bounds.x0 += float(gl.xoffs + 0.25) * scale * aspect;
+	bounds.y0 += float(gl.yoffs + 0.25) * scale * aspect;
 	// compute x1,y1 from there based on the bitmap size
 	bounds.x1 = bounds.x0 + float(gl.bmwidth) * scale * aspect;
-	bounds.y1 = bounds.y0 + float(m_height) * scale;
+	if (m_format == format::CRT)
+		bounds.y1 = bounds.y0 + float(gl.bmheight) * scale;
+	else
+		bounds.y1 = bounds.y0 + float(m_height) * scale;
 
 	// return the texture
 	return gl.texture;

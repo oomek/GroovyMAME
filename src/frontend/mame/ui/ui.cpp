@@ -491,9 +491,14 @@ render_font *mame_ui_manager::get_font()
 
 float mame_ui_manager::get_line_height()
 {
+	// return (float)get_font()->pixel_height() / (float)machine().render().ui_target().height();
+
 	int32_t raw_font_pixel_height = get_font()->pixel_height();
-	render_target &ui_target = machine().render().ui_target();
-	int32_t target_pixel_height = ui_target.height();
+	// Optimized, check other places
+	// render_target &ui_target = machine().render().ui_target();
+	// int32_t target_pixel_height = ui_target.height();
+	render_target *ui_target = &machine().render().ui_target();
+	int32_t target_pixel_height = ui_target->height();
 	float one_to_one_line_height;
 	float scale_factor;
 
@@ -525,6 +530,7 @@ float mame_ui_manager::get_line_height()
 		scale_factor = (float)height / (one_to_one_line_height * (float)target_pixel_height);
 	}
 
+	// osd_printf_error("%d %d %d %d %d\n", raw_font_pixel_height, target_pixel_height, one_to_one_line_height, target_font_height(), scale_factor);
 	return scale_factor * one_to_one_line_height;
 }
 
@@ -571,11 +577,14 @@ void mame_ui_manager::draw_outlined_box(render_container &container, float x0, f
 
 void mame_ui_manager::draw_outlined_box(render_container &container, float x0, float y0, float x1, float y1, rgb_t fgcolor, rgb_t bgcolor)
 {
+	float const line_height = get_line_height();
+	float const frame_height = line_height / get_font()->pixel_height();
+	float const frame_width = frame_height * machine().render().ui_aspect();
 	container.add_rect(x0, y0, x1, y1, bgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x0, y0, x1, y0, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x1, y0, x1, y1, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x1, y1, x0, y1, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
-	container.add_line(x0, y1, x0, y0, UI_LINE_WIDTH, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x0, y0, x1, y0 + frame_height, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x0, y1 - frame_height, x1, y1, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x0, y0 + frame_height, x0 + frame_width, y1 - frame_height, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+	container.add_rect(x1 - frame_width, y0 + frame_height, x1, y1 - frame_height, fgcolor, PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 }
 
 

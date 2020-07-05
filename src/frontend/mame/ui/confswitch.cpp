@@ -9,6 +9,7 @@
 *********************************************************************/
 
 #include "emu.h"
+#include "rendfont.h"
 #include "ui/confswitch.h"
 
 #include <algorithm>
@@ -24,7 +25,7 @@ namespace {
 ***************************************************************************/
 
 // DIP switch rendering parameters in terms of line height
-constexpr float DIP_SWITCH_HEIGHT = 1.6f;
+constexpr float DIP_SWITCH_HEIGHT = 1.5f;
 constexpr float DIP_SWITCH_SPACING = DIP_SWITCH_HEIGHT / 5.0f;
 constexpr float SINGLE_TOGGLE_SWITCH_FIELD_WIDTH = DIP_SWITCH_HEIGHT / 2.0f;
 constexpr float SINGLE_TOGGLE_SWITCH_WIDTH = SINGLE_TOGGLE_SWITCH_FIELD_WIDTH * 0.8f;
@@ -266,6 +267,7 @@ menu_settings_dip_switches::~menu_settings_dip_switches()
 
 void menu_settings_dip_switches::custom_render(void *selectedref, float top, float bottom, float x1, float y1, float x2, float y2)
 {
+	// osd_printf_error("%d\n", (int)ui().get_font()->get_format());
 	// catch if no diploc has to be drawn
 	if (!m_visible_switch_groups)
 		return;
@@ -293,17 +295,23 @@ void menu_settings_dip_switches::custom_render(void *selectedref, float top, flo
 	float const boxleft((1.0f - boxwidth) / 2.0f);
 	ui().draw_outlined_box(container(), boxleft, y2 + ui().box_tb_border(), boxleft + boxwidth, y2 + bottom, ui().colors().background_color());
 
+	float const frame_height = lineheight / ui().get_font()->pixel_height();
+	float const frame_width = frame_height * machine().render().ui_aspect();
+
 	// calculate centred layout
 	float const nameleft((1.0f - width) / 2.0f);
-	float const switchleft(nameleft + width - (singlewidth * maxswitches));
+	float switchleft(nameleft + width - (singlewidth * maxswitches));
+	switchleft = std::floor(switchleft * machine().render().ui_target().height()) / machine().render().ui_target().height();
 	float const namewidth(width - (singlewidth * maxswitches) - (lineheight * aspect));
 
 	// iterate over switch groups
 	ioport_field *const field((uintptr_t(selectedref) != 1U) ? reinterpret_cast<ioport_field *>(selectedref) : nullptr);
-	float const nubheight(lineheight * SINGLE_TOGGLE_SWITCH_HEIGHT);
-	float const nubwidth(lineheight * SINGLE_TOGGLE_SWITCH_WIDTH * aspect);
-	float const ygap(lineheight * ((DIP_SWITCH_HEIGHT / 2) - SINGLE_TOGGLE_SWITCH_HEIGHT) / 2);
-	float const xgap((singlewidth + (UI_LINE_WIDTH / 2) - nubwidth) / 2);
+	// float const nubheight(lineheight * SINGLE_TOGGLE_SWITCH_HEIGHT);
+	float const nubheight(frame_height * 8.0f);
+	// float const nubwidth(lineheight * SINGLE_TOGGLE_SWITCH_WIDTH * aspect);
+	// float const ygap(lineheight * ((DIP_SWITCH_HEIGHT / 2) - SINGLE_TOGGLE_SWITCH_HEIGHT) / 2);
+	// float const xgap((singlewidth + (UI_LINE_WIDTH / 2) - nubwidth) / 2);
+
 	unsigned line(0U);
 	for (switch_group_descriptor const &group : switch_groups())
 	{
@@ -328,39 +336,59 @@ void menu_settings_dip_switches::custom_render(void *selectedref, float top, flo
 					mame_ui_manager::NORMAL, ui().colors().text_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 
 			// draw the group outline
-			float const switchbottom(liney + (DIP_SWITCH_HEIGHT * lineheight));
+			// float const switchbottom(liney + (DIP_SWITCH_HEIGHT * lineheight));
+			float const switchbottom(liney + frame_height * 16.0f);
 			unsigned const cnt(group.switch_count());
 			ui().draw_outlined_box(
 					container(),
-					switchleft, liney, switchleft + (singlewidth * cnt), switchbottom,
+					switchleft,
+					liney,
+					switchleft + (ui().get_char_width(0) * cnt) + frame_width,
+					switchbottom,
 					ui().colors().background_color());
 			for (unsigned i = 1; cnt > i; ++i)
 			{
-				container().add_line(
-						switchleft + (singlewidth * i), liney, switchleft + (singlewidth * i), switchbottom,
-						UI_LINE_WIDTH, ui().colors().text_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+				// container().add_line(
+				// 		switchleft + (singlewidth * i), liney, switchleft + (singlewidth * i), switchbottom,
+				// 		UI_LINE_WIDTH, ui().colors().text_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+
+				container().add_rect(
+						 switchleft + (ui().get_char_width(0) * i),
+						 liney + frame_height,
+						 switchleft + (ui().get_char_width(0) * i) + frame_width,
+						 switchbottom - frame_height,
+						 ui().colors().border_color(),
+						 PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
 			}
 
 			// compute top and bottom for on and off positions
-			float const yoff(liney + UI_LINE_WIDTH + ygap);
-			float const yon(switchbottom - UI_LINE_WIDTH - ygap - nubheight);
+			float const yoff(liney + frame_height * 1.0f);
+			float const yon(switchbottom - frame_height * 9.0f);
 
 			// draw the switch nubs
 			for (unsigned toggle = 0; cnt > toggle; ++toggle)
 			{
-				float const nubleft(switchleft + (singlewidth * toggle) + xgap);
+				float const nubleft(switchleft + ui().get_char_width(0) * toggle);// + xgap);
 				if (BIT(group.mask, toggle))
 				{
 					float const nubtop(BIT(group.state, toggle) ? yon : yoff);
 					container().add_rect(
-							nubleft, nubtop, nubleft + nubwidth, nubtop + nubheight,
-							BIT(selectedmask, toggle) ? ui().colors().dipsw_color() : ui().colors().text_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+							nubleft + frame_width * 2.0f,
+							nubtop + frame_height,
+							nubleft + ui().get_char_width(0) - frame_width,
+							nubtop + nubheight - frame_height,
+							BIT(selectedmask, toggle) ? ui().colors().dipsw_color() : ui().colors().text_color(),
+							PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 				}
 				else
 				{
 					container().add_rect(
-							nubleft, yoff, nubleft + nubwidth, yon + nubheight,
-							ui().colors().unavailable_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+							nubleft + frame_width * 2.0f,
+							yoff + frame_height,
+							nubleft + ui().get_char_width(0) - frame_width,
+							yon + nubheight - frame_height,
+							ui().colors().unavailable_color(),
+							PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
 				}
 			}
 

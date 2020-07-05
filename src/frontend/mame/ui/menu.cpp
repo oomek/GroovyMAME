@@ -9,6 +9,7 @@
 *********************************************************************/
 
 #include "emu.h"
+#include "rendfont.h"
 
 #include "ui/menu.h"
 
@@ -512,6 +513,7 @@ void menu::draw(uint32_t flags)
 	bool const noinput = (flags & PROCESS_NOINPUT);
 	float const aspect = machine().render().ui_aspect(&container());
 	float const line_height = ui().get_line_height();
+	float const frame_width = line_height / ui().get_font()->pixel_height();
 	float const lr_arrow_width = 0.4f * line_height * aspect;
 	float const ud_arrow_width = line_height * aspect;
 	float const gutter_width = lr_arrow_width * 1.3f;
@@ -663,8 +665,22 @@ void menu::draw(uint32_t flags)
 			}
 			else if (pitem.type == menu_item_type::SEPARATOR)
 			{
+				// osd_printf_error("line_height: %f\n", line_height);
 				// if we're just a divider, draw a line
-				container().add_line(visible_left, line_y0 + 0.5f * line_height, visible_left + visible_width, line_y0 + 0.5f * line_height, UI_LINE_WIDTH, ui().colors().border_color(), PRIMFLAG_BLENDMODE(BLENDMODE_ALPHA));
+				// container().add_line(visible_left,
+				// 					 line_y0 + 0.5f * line_height,
+				// 					 visible_left + visible_width,
+				// 					 line_y0 + 0.5f * line_height,
+				// 					 1.0f / 224.0f,
+				// 					 ui().colors().border_color(),
+				// 					 PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
+
+				container().add_rect(visible_left,
+									 line_y0 + 0.5f * line_height,
+									 visible_left + visible_width,
+									 line_y0 + 0.5f * line_height + frame_width,
+									 ui().colors().border_color(),
+									 PRIMFLAG_BLENDMODE(BLENDMODE_NONE));
 			}
 			else if (pitem.subtext.empty())
 			{
@@ -714,10 +730,10 @@ void menu::draw(uint32_t flags)
 
 					// customize subitem text color
 					if (!core_stricmp(subitem_text, _("On")))
-						fgcolor2 = rgb_t(0x00,0xff,0x00);
+						fgcolor2 = rgb_t(0x20,0xff,0x20);
 
 					if (!core_stricmp(subitem_text, _("Off")))
-						fgcolor2 = rgb_t(0xff,0x00,0x00);
+						fgcolor2 = rgb_t(0xff,0x40,0x40);
 
 					if (!core_stricmp(subitem_text, _("Auto")))
 						fgcolor2 = rgb_t(0xff,0xff,0x00);

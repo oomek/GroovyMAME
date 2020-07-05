@@ -384,6 +384,7 @@ void render_texture::set_bitmap(bitmap_t &bitmap, const rectangle &sbounds, text
 		elem.bitmap = nullptr;
 		elem.seqid = 0;
 	}
+	m_curseq++;
 }
 
 
@@ -430,8 +431,12 @@ void render_texture::get_scaled(u32 dwidth, u32 dheight, render_texinfo &texinfo
 		texinfo.rowpixels = m_bitmap->rowpixels();
 		texinfo.width = swidth;
 		texinfo.height = sheight;
+		// increment seqid if we get a screen texture
+		// if (m_id > (1ULL << 56))
+			texinfo.seqid = m_curseq;
+		// else
+			// texinfo.seqid = 0;
 		// palette will be set later
-		texinfo.seqid = ++m_curseq;
 	}
 	else
 	{
@@ -473,7 +478,7 @@ void render_texture::get_scaled(u32 dwidth, u32 dheight, render_texinfo &texinfo
 
 			// allocate a new bitmap
 			scaled->bitmap = global_alloc(bitmap_argb32(dwidth, dheight));
-			scaled->seqid = ++m_curseq;
+			scaled->seqid = m_curseq;
 
 			// let the scaler do the work
 			(*m_scaler)(*scaled->bitmap, srcbitmap, m_sbounds, m_param);
@@ -488,6 +493,7 @@ void render_texture::get_scaled(u32 dwidth, u32 dheight, render_texinfo &texinfo
 		// palette will be set later
 		texinfo.seqid = scaled->seqid;
 	}
+	// osd_printf_error("%d %d\n", m_id, texinfo.seqid);
 }
 
 

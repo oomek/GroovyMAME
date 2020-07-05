@@ -75,7 +75,8 @@ private:
 		UNKNOWN,
 		TEXT,
 		CACHED,
-		OSD
+		OSD,
+		CRT
 	};
 
 	// helpers
@@ -104,9 +105,13 @@ private:
 	int                 m_yoffs_cmd;        // y offset from baseline to descent
 	EQUIVALENT_ARRAY(m_glyphs, glyph *) m_glyphs_cmd; // array of glyph subtables
 	std::vector<char>   m_rawdata_cmd;      // pointer to the raw data for the font
+	bitmap_argb32       m_crt_font;         // crt optimized font atlas
 
 	// constants
 	static const u64 CACHED_BDF_HASH_SIZE   = 1024;
+
+public:
+	format get_format() { return m_format; }
 };
 
 void convert_command_glyph(std::string &s);
