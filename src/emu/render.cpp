@@ -1526,6 +1526,7 @@ void render_target::resolve_tags()
 
 void render_target::update_layer_config()
 {
+	osd_printf_error("update_layer_config---\n");
 	m_curview->recompute(m_layerconfig);
 }
 
@@ -3086,10 +3087,10 @@ float render_manager::ui_aspect(render_container *rc)
 	}
 
 	// clamp for extreme proportions
-	if (aspect < 0.66f)
-		aspect = 0.66f;
-	if (aspect > 1.5f)
-		aspect = 1.5f;
+	// if (aspect < 0.66f)
+	// 	aspect = 0.66f;
+	// if (aspect > 1.5f)
+	// 	aspect = 1.5f;
 
 	return aspect;
 }

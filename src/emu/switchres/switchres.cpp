@@ -313,7 +313,7 @@ bool switchres_check_resolution_change(running_machine &machine)
 
 	if (game->width != new_width || game->height != new_height || new_vfreq != game->refresh || cs->effective_orientation != new_orientation)
 	{
-		osd_printf_verbose("SwitchRes: Resolution change from %dx%d@%f %s to %dx%d@%f %s\n",
+		osd_printf_error("SwitchRes: Resolution change from %dx%d@%f %s to %dx%d@%f %s\n",
 			game->width, game->height, game->refresh, cs->effective_orientation?"rotated":"normal", new_width, new_height, new_vfreq, new_orientation?"rotated":"normal");
 
 		game->width = new_width;

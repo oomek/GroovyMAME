@@ -540,7 +540,7 @@ inline render_font::glyph &render_font::get_char(char32_t chnum)
 
 			if (m_format == format::CRT)
 			{
-				gl.width = glyph_ch.width;
+				gl.width = glyph_ch.width * 1; // SUPERRES CMD
 				gl.xoffs = glyph_ch.xoffs;
 				gl.yoffs = glyph_ch.yoffs + 1; // fixes offset to crt font
 				gl.bmwidth = glyph_ch.bmwidth;
@@ -570,7 +570,6 @@ inline render_font::glyph &render_font::get_char(char32_t chnum)
 			char_expand(chnum, gl);
 		}
 	}
-
 	return gl;
 }
 
@@ -785,7 +784,7 @@ void render_font::char_expand(char32_t chnum, glyph &gl)
 				dstrow[x] = rgb_t(srcrow[x] & 0xff, 0xff, 0xff, 0xff);
 		}
 
-		gl.width = gl.bitmap.width();
+		gl.width = gl.bitmap.width() * 1; //SUPERRES CRT
 		gl.xoffs = 0;
 		gl.yoffs = 0;
 
@@ -924,7 +923,7 @@ render_texture *render_font::get_char_texture_and_bounds(float height, float asp
 	bounds.x0 += float(gl.xoffs + 0.25) * scale * aspect;
 	bounds.y0 += float(gl.yoffs + 0.25) * scale * aspect;
 	// compute x1,y1 from there based on the bitmap size
-	bounds.x1 = bounds.x0 + float(gl.bmwidth) * scale * aspect;
+	bounds.x1 = bounds.x0 + float(gl.bmwidth) * scale * aspect * 1.0f; // SUPERRES QUAD
 	if (m_format == format::CRT)
 		bounds.y1 = bounds.y0 + float(gl.bmheight) * scale;
 	else
@@ -978,7 +977,7 @@ void render_font::get_scaled_bitmap_and_bounds(bitmap_argb32 &dest, float height
 
 float render_font::char_width(float height, float aspect, char32_t ch)
 {
-	return float(get_char(ch).width) * m_scale * height * aspect;
+	return float(get_char(ch).width) * m_scale * height * aspect;// * 2.0f;
 }
 
 
@@ -1006,7 +1005,7 @@ float render_font::string_width(float height, float aspect, const char *string)
 
 
 	// scale the final result based on height
-	return float(totwidth) * m_scale * height * aspect;
+	return float(totwidth) * m_scale * height * aspect;// * 2.0f;
 }
 
 
@@ -1017,6 +1016,7 @@ float render_font::string_width(float height, float aspect, const char *string)
 
 float render_font::utf8string_width(float height, float aspect, const char *utf8string)
 {
+	// osd_printf_error("utf8: %s\n", utf8string);
 	std::size_t const length = std::strlen(utf8string);
 
 	// loop over the string and accumulate widths
@@ -1033,7 +1033,7 @@ float render_font::utf8string_width(float height, float aspect, const char *utf8
 	}
 
 	// scale the final result based on height
-	return float(totwidth) * m_scale * height * aspect;
+	return float(totwidth) * m_scale * height * aspect;// * 2.0f;
 }
 
 

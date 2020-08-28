@@ -402,6 +402,7 @@ void menu_settings_dip_switches::custom_render(void *selectedref, float top, flo
 
 void menu_settings_dip_switches::populate(float &customtop, float &custombottom)
 {
+	osd_printf_error("populate--\n");
 	// let the base class add items
 	menu_confswitch::populate(customtop, custombottom);
 

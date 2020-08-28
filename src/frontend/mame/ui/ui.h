@@ -247,6 +247,9 @@ public:
 	float target_font_height() const { return m_target_font_height; }
 	float box_lr_border() const { return target_font_height() * 0.25f; }
 	float box_tb_border() const { return target_font_height() * 0.25f; }
+	float outline_width() const { return m_outline_width; }
+	float outline_height() const { return m_outline_height; }
+	float scalex() const { return m_scalex; }
 	void update_target_font_height();
 
 	// other
@@ -267,7 +270,7 @@ private:
 	render_font *           m_font;
 	std::function<uint32_t (render_container &)> m_handler_callback;
 	ui_callback_type        m_handler_callback_type;
-	uint32_t                  m_handler_param;
+	uint32_t                m_handler_param;
 	bool                    m_single_step;
 	bool                    m_showfps;
 	osd_ticks_t             m_showfps_end;
@@ -280,6 +283,9 @@ private:
 	ui_options              m_ui_options;
 	ui_colors               m_ui_colors;
 	float                   m_target_font_height;
+	float                   m_outline_width;
+	float                   m_outline_height;
+	float                   m_scalex;
 
 	std::unique_ptr<ui::machine_info> m_machine_info;
 

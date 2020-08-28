@@ -261,10 +261,12 @@ void sdl_window_info::show_pointer()
 
 void sdl_window_info::resize(int32_t width, int32_t height)
 {
+	osd_printf_error("sdl_window_info::resize\n");
 	osd_dim cd = get_size();
 
 	if (width != cd.width() || height != cd.height())
 	{
+		osd_printf_error("sdl_window_info::resize TRUE\n");
 		SDL_SetWindowSize(platform_window(), width, height);
 		renderer().notify_changed();
 	}
