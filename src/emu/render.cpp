@@ -377,6 +377,7 @@ void render_texture::set_bitmap(bitmap_t &bitmap, const rectangle &sbounds, text
 	m_bitmap = &bitmap;
 	m_sbounds = sbounds;
 	m_format = format;
+	m_curseq++;
 
 	// invalidate all scaled versions
 	for (auto & elem : m_scaled)
@@ -434,7 +435,7 @@ void render_texture::get_scaled(u32 dwidth, u32 dheight, render_texinfo &texinfo
 		texinfo.width_margin = m_sbounds.left();
 		texinfo.height = sheight;
 		// palette will be set later
-		texinfo.seqid = ++m_curseq;
+		texinfo.seqid = m_curseq;
 	}
 	else
 	{
@@ -489,7 +490,7 @@ void render_texture::get_scaled(u32 dwidth, u32 dheight, render_texinfo &texinfo
 		texinfo.width = dwidth;
 		texinfo.height = dheight;
 		// palette will be set later
-		texinfo.seqid = scaled->seqid;
+		texinfo.seqid = m_curseq;
 	}
 }
 
