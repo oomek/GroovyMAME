@@ -16,6 +16,7 @@
 // OSD headers
 #include "sdlopts.h"
 #include "window.h"
+#include "modules/monitor/monitor_common.h"
 
 // lib/util
 #include "options.h"
