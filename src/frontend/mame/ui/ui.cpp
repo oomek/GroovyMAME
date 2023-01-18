@@ -475,7 +475,7 @@ void mame_ui_manager::display_startup_screens(bool first_time)
 				warning_text = machine_info().game_info_string();
 			if (!warning_text.empty())
 			{
-				warning_text.append(_("\n\nPress any key to continue"));
+				warning_text.append(_("\nPress any key to continue"));
 				set_handler(ui_callback_type::MODAL, handler_callback_func(handler_messagebox_anykey));
 			}
 			break;
@@ -728,12 +728,17 @@ float mame_ui_manager::get_line_height(float scale)
 {
 	int32_t const raw_font_pixel_height = get_font()->pixel_height();
 	float target_pixel_height = machine().render().ui_target().height();
+	float target_pixel_width = machine().render().ui_target().width();
+
+	if (machine().render().ui_target().orientation() & ORIENTATION_SWAP_XY)
+		std::swap(target_pixel_height, target_pixel_width);
 
 	// compute the font pixel height at the nominal size
 	float const one_to_one_line_height = float(raw_font_pixel_height) / target_pixel_height;
 
 	// determine the scale factor
-	float scale_factor = target_font_height() * scale / one_to_one_line_height;
+	float scale_factor = std::min(target_pixel_height / float(raw_font_pixel_height) / options().font_rows(),
+								target_pixel_width / float(raw_font_pixel_height) / options().font_rows());
 
 	// if our font is small-ish, do integral scaling
 	if (raw_font_pixel_height < 24)
@@ -749,6 +754,10 @@ float mame_ui_manager::get_line_height(float scale)
 			// otherwise, just ensure an integral scale factor
 			scale_factor = floor(scale_factor);
 		}
+
+		// correct scale by pixel_aspect for integer factors in both axes
+		float pixel_aspect = std::max(machine().render().ui_target().integer_aspect(), 1.0f);
+		scale_factor *= pixel_aspect;
 	}
 	else
 	{
