@@ -378,7 +378,7 @@ public:
 		memset(&m_joystick, 0, sizeof(m_joystick));
 	}
 
-	void process_event(RAWINPUT &rawinput) override
+	virtual void process_event(RAWINPUT const &rawinput) override
 	{
 		for (size_t button_index = 0; button_index != MAX_BUTTONS; ++button_index)
 			m_joystick.buttons[button_index] = 0;
@@ -409,66 +409,13 @@ public:
 
 	virtual void configure(input_device &device) override
 	{
-
-		RID_DEVICE_INFO rdi = {};
-		rdi.cbSize = sizeof(RID_DEVICE_INFO);
-
-		UINT rdi_size = rdi.cbSize;
-		if (GetRawInputDeviceInfoW(device.hDevice, RIDI_DEVICEINFO, &rdi, &rdi_size) < 1)
-			return;
-
-		if (rdi.hid.usUsage != HID_USAGE_GENERIC_JOYSTICK && rdi.hid.usUsage != HID_USAGE_GENERIC_GAMEPAD)
-			return;
-
-		// get the device information
-		UINT preparsed_data_buffer_size;
-		GetRawInputDeviceInfoW(device.hDevice, RIDI_PREPARSEDDATA, NULL, &preparsed_data_buffer_size);
-
-		std::unique_ptr<uint8_t[]> preparsed_data_buffer = std::make_unique<uint8_t[]>(preparsed_data_buffer_size);
-		PHIDP_PREPARSED_DATA preparsed_data_ptr = reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsed_data_buffer.get());
-		if (GetRawInputDeviceInfoW(device.hDevice, RIDI_PREPARSEDDATA, preparsed_data_ptr, &preparsed_data_buffer_size) < 0)
-			return;
-
-		HIDP_CAPS joystick_capabilities;
-		if (HidP_GetCaps(preparsed_data_ptr, &joystick_capabilities) != HIDP_STATUS_SUCCESS)
-			return;
-
-		if (joystick_capabilities.NumberInputButtonCaps < 1 && joystick_capabilities.NumberInputValueCaps < 1)
-			return;
-
-		std::vector<HIDP_BUTTON_CAPS> button_capabilities(joystick_capabilities.NumberInputButtonCaps);
-		if (HidP_GetButtonCaps(HidP_Input, button_capabilities.data(), &joystick_capabilities.NumberInputButtonCaps, preparsed_data_ptr) != HIDP_STATUS_SUCCESS)
-			return;
-
-		// Populate joystick device buttons
-		constexpr uint32_t button_usage_page = HID_USAGE_PAGE_BUTTON;
-		constexpr size_t buttons_length_cap = 32;
-		size_t button_count = 0;
-
-		for (const auto& button_capability : button_capabilities)
-		{
-			uint16_t usage_min = button_capability.Range.UsageMin;
-			uint16_t usage_max = button_capability.Range.UsageMax;
-
-			if (usage_min == 0 || usage_max == 0)
-				continue;
-
-			size_t button_index_min = static_cast<size_t>(usage_min - 1);
-			size_t button_index_max = static_cast<size_t>(usage_max - 1);
-
-			if (button_capability.UsagePage == button_usage_page && button_index_min < buttons_length_cap)
-			{
-				button_index_max = std::min(buttons_length_cap - 1, button_index_max);
-				button_count = std::max(button_count, button_index_max + 1);
-			}
-		}
-
-		// should we even allow a joystick that has no buttons?
-		if (button_count < 1)
-			return;
-
 		// dual shock 4 and dual sense gamepads have bi-directional triggers and don't behave the same as other axes;
 		// their released state is 100% negative
+		RID_DEVICE_INFO rdi = {};
+		rdi.cbSize = sizeof(RID_DEVICE_INFO);
+		UINT rdi_size = rdi.cbSize;
+		GetRawInputDeviceInfoW(device_handle(), RIDI_DEVICEINFO, &rdi, &rdi_size);
+
 		if (rdi.hid.dwVendorId == 0x054C) // Sony vendor ID
 		{
 			switch (rdi.hid.dwProductId)
@@ -477,8 +424,8 @@ public:
 				case 0x09CC:    // dualShock4Gen2ProductId
 				case 0x0CE6:    // dualSenseProductId
 				{
-					devinfo->joystick.bidirectional_trigger_axis[3] = true;
-					devinfo->joystick.bidirectional_trigger_axis[4] = true;
+					m_joystick.bidirectional_trigger_axis[3] = true;
+					m_joystick.bidirectional_trigger_axis[4] = true;
 					break;
 				}
 				default:
@@ -492,8 +439,8 @@ public:
 		const char *const rawinput_pov_names[] = {"DPAD Up", "DPAD Down", "DPAD Left", "DPAD Right"};
 
 		for (size_t pov_index = 0; pov_index != 4; ++pov_index)
-			devinfo->device()->add_item(rawinput_pov_names[pov_index], ITEM_ID_OTHER_SWITCH,
-										generic_button_get_state<int32_t>, &devinfo->joystick.hats[pov_index]);
+			device.add_item(rawinput_pov_names[pov_index], ITEM_ID_OTHER_SWITCH,
+										generic_button_get_state<int32_t>, &m_joystick.hats[pov_index]);
 
 		// loop over all axes
 		for (int axis = 0; axis != 9; ++axis)
@@ -509,13 +456,13 @@ public:
 				itemid = ITEM_ID_OTHER_AXIS_ABSOLUTE;
 
 			snprintf(temp_name, sizeof(temp_name), "A%d", axis + 1);
-			devinfo->device()->add_item(temp_name, itemid, generic_axis_get_state<std::int32_t>, &devinfo->joystick.axes[axis]);
+			device.add_item(temp_name, itemid, generic_axis_get_state<std::int32_t>, &m_joystick.axes[axis]);
 		}
 
 		// add the item to the device
 		for (size_t button_index = 0; button_index != MAX_BUTTONS; ++button_index)
-			devinfo->device()->add_item(default_button_name(button_index), static_cast<input_item_id>(ITEM_ID_BUTTON1 + button_index),
-										generic_button_get_state<std::int32_t>, &devinfo->joystick.buttons[button_index]);
+			device.add_item(default_button_name(button_index), static_cast<input_item_id>(ITEM_ID_BUTTON1 + button_index),
+										generic_button_get_state<std::int32_t>, &m_joystick.buttons[button_index]);
 	}
 
 private:
@@ -535,7 +482,7 @@ private:
 		m_joystick.axes[axis_index] = normalize_absolute_axis(current_value, min_value, max_value);
 	}
 
-	void set_value_caps(RAWINPUT &rawinput, const PHIDP_PREPARSED_DATA& preparsed_data_buf_ptr, USHORT number_input_value_caps)
+	void set_value_caps(RAWINPUT const &rawinput, const PHIDP_PREPARSED_DATA& preparsed_data_buf_ptr, USHORT number_input_value_caps)
 	{
 		if (number_input_value_caps < 1)
 			return;
@@ -551,7 +498,7 @@ private:
 
 			ULONG usage_value;
 			if (HidP_GetUsageValue(HidP_Input, value_cap.UsagePage, 0, value_cap.Range.UsageMin, &usage_value, preparsed_data_buf_ptr,
-									reinterpret_cast<PCHAR>(rawinput.data.hid.bRawData), rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
+									(PCHAR)(rawinput.data.hid.bRawData), rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
 				continue;
 
 			switch (value_cap.Range.UsageMin)
@@ -588,7 +535,7 @@ private:
 		}
 	}
 
-	void set_button_caps(RAWINPUT &rawinput, const PHIDP_PREPARSED_DATA& preparsed_data_buf_ptr, USHORT number_input_button_caps)
+	void set_button_caps(RAWINPUT const &rawinput, const PHIDP_PREPARSED_DATA& preparsed_data_buf_ptr, USHORT number_input_button_caps)
 	{
 		if (number_input_button_caps < 1)
 			return;
@@ -606,7 +553,7 @@ private:
 		std::unique_ptr<USAGE[]> usages = std::make_unique<USAGE[]>(usageLength);
 
 		if (HidP_GetUsages(HidP_Input, button_caps.data()->UsagePage, 0, usages.get(), &usageLength, preparsed_data_buf_ptr,
-							reinterpret_cast<PCHAR>(rawinput.data.hid.bRawData), rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
+							(PCHAR)(rawinput.data.hid.bRawData), rawinput.data.hid.dwSizeHid) != HIDP_STATUS_SUCCESS)
 			return;
 
 		for (size_t usageIndex = 0; usageIndex != usageLength; ++usageIndex)
@@ -1110,13 +1057,79 @@ protected:
 
 	void add_rawinput_device(RAWINPUTDEVICELIST const &device) override
 	{
-		// first make sure this is a joystick or gamepad
+		// first make sure this is not a keyboard or a mouse
 		if (device.dwType != RIM_TYPEHID)
 			return;
 
-		// allocate and link in a new device
-		create_rawinput_device<rawinput_keyboard_device>(DEVICE_CLASS_JOYSTICK, device);
+		// also check if it's a valid joystick or gamepad
+		if (!is_valid_joystick(device))
+			return;
 
+		// allocate and link in a new device
+		create_rawinput_device<rawinput_joystick_device>(DEVICE_CLASS_JOYSTICK, device);
+
+	}
+
+	bool is_valid_joystick(RAWINPUTDEVICELIST const &device)
+	{
+		RID_DEVICE_INFO rdi = {};
+		rdi.cbSize = sizeof(RID_DEVICE_INFO);
+
+		UINT rdi_size = rdi.cbSize;
+		if (GetRawInputDeviceInfoW(device.hDevice, RIDI_DEVICEINFO, &rdi, &rdi_size) < 1)
+			return false;
+
+		if (rdi.hid.usUsage != HID_USAGE_GENERIC_JOYSTICK && rdi.hid.usUsage != HID_USAGE_GENERIC_GAMEPAD)
+			return false;
+
+		// get the device information
+		UINT preparsed_data_buffer_size;
+		GetRawInputDeviceInfoW(device.hDevice, RIDI_PREPARSEDDATA, NULL, &preparsed_data_buffer_size);
+
+		std::unique_ptr<uint8_t[]> preparsed_data_buffer = std::make_unique<uint8_t[]>(preparsed_data_buffer_size);
+		PHIDP_PREPARSED_DATA preparsed_data_ptr = reinterpret_cast<PHIDP_PREPARSED_DATA>(preparsed_data_buffer.get());
+		if (GetRawInputDeviceInfoW(device.hDevice, RIDI_PREPARSEDDATA, preparsed_data_ptr, &preparsed_data_buffer_size) < 0)
+			return false;
+
+		HIDP_CAPS joystick_capabilities;
+		if (HidP_GetCaps(preparsed_data_ptr, &joystick_capabilities) != HIDP_STATUS_SUCCESS)
+			return false;
+
+		if (joystick_capabilities.NumberInputButtonCaps < 1 && joystick_capabilities.NumberInputValueCaps < 1)
+			return false;
+
+		std::vector<HIDP_BUTTON_CAPS> button_capabilities(joystick_capabilities.NumberInputButtonCaps);
+		if (HidP_GetButtonCaps(HidP_Input, button_capabilities.data(), &joystick_capabilities.NumberInputButtonCaps, preparsed_data_ptr) != HIDP_STATUS_SUCCESS)
+			return false;
+
+		// Populate joystick device buttons
+		constexpr uint32_t button_usage_page = HID_USAGE_PAGE_BUTTON;
+		constexpr size_t buttons_length_cap = 32;
+		size_t button_count = 0;
+
+		for (const auto& button_capability : button_capabilities)
+		{
+			uint16_t usage_min = button_capability.Range.UsageMin;
+			uint16_t usage_max = button_capability.Range.UsageMax;
+
+			if (usage_min == 0 || usage_max == 0)
+				continue;
+
+			size_t button_index_min = static_cast<size_t>(usage_min - 1);
+			size_t button_index_max = static_cast<size_t>(usage_max - 1);
+
+			if (button_capability.UsagePage == button_usage_page && button_index_min < buttons_length_cap)
+			{
+				button_index_max = std::min(buttons_length_cap - 1, button_index_max);
+				button_count = std::max(button_count, button_index_max + 1);
+			}
+		}
+
+		// should we even allow a joystick that has no buttons?
+		if (button_count < 1)
+			return false;
+
+		return true;
 	}
 };
 
