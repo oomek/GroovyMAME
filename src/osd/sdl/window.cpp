@@ -559,7 +559,7 @@ void sdl_window_info::update()
 	if (target() != nullptr)
 	{
 		// check if geometry has changed
-		if (this->m_fullscreen && downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_geometry_change(index()))
+		if (this->m_fullscreen && video_config.switchres && downcast<sdl_osd_interface&>(machine().osd()).switchres()->check_geometry_change(index()))
 		{
 			toggle_full_screen();
 			downcast<sdl_osd_interface&>(machine().osd()).switchres()->adjust_mode(index());

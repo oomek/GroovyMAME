@@ -844,7 +844,7 @@ void win_window_info::update()
 	}
 
 	// check if geometry has changed
-	if (fullscreen() && WINOSD(machine())->switchres()->check_geometry_change(index()))
+	if (fullscreen() && options.switch_res() && WINOSD(machine())->switchres()->check_geometry_change(index()))
 	{
 		winwindow_toggle_full_screen();
 		WINOSD(machine())->switchres()->adjust_mode(index());
