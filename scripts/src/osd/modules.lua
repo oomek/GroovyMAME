@@ -544,6 +544,10 @@ function osdmodulestargetconf()
 		end
 	end
 
+	links {
+			"lz4",
+		}
+
 	if _OPTIONS["targetos"]=="windows" then
 		links {
 			"gdi32",
@@ -552,7 +556,6 @@ function osdmodulestargetconf()
 			"oleaut32",
 			"winmm",
 			"hid",
-			"lz4",
 		}
 	elseif _OPTIONS["targetos"]=="macosx" then
 		links {
