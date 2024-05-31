@@ -242,6 +242,14 @@ int renderer_sdl1::create()
 		fatalerror("Error on creating renderer: %s\n", SDL_GetError());
 	}
 
+	// Clear the render target buffers
+	SDL_SetRenderDrawColor(m_sdl_renderer, 0, 0, 0, 255);
+	for (int i = 0; i < 4; i++)
+	{
+		SDL_RenderClear(m_sdl_renderer);
+		SDL_RenderPresent(m_sdl_renderer);
+	}
+
 	struct SDL_RendererInfo render_info;
 
 	SDL_GetRendererInfo(m_sdl_renderer, &render_info);

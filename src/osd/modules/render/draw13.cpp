@@ -504,7 +504,14 @@ int renderer_sdl2::create()
 
 	m_blittimer = 3;
 
-	//SDL_RenderPresent(m_sdl_renderer);
+	// Clear the render target buffers
+	SDL_SetRenderDrawColor(m_sdl_renderer, 0, 0, 0, 255);
+	for (int i = 0; i < 4; i++)
+	{
+		SDL_RenderClear(m_sdl_renderer);
+		SDL_RenderPresent(m_sdl_renderer);
+	}
+
 	osd_printf_verbose("Leave renderer_sdl2::create\n");
 
 	struct SDL_RendererInfo render_info;

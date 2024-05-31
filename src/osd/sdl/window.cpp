@@ -859,6 +859,8 @@ void sdl_window_info::update()
 
 int sdl_window_info::complete_create()
 {
+	SDL_ShowCursor(SDL_DISABLE);
+
 	osd_dim temp(0,0);
 	bool mode_setting = downcast<sdl_options &>(machine().options()).mode_setting();
 
@@ -1044,10 +1046,6 @@ int sdl_window_info::complete_create()
 	// initialize the drawing backend
 	if (renderer().create())
 		return 1;
-
-	// Make sure we have a consistent state
-	SDL_ShowCursor(SDL_DISABLE);
-	SDL_ShowCursor(SDL_ENABLE);
 
 	return 0;
 }

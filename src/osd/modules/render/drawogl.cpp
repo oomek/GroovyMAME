@@ -810,6 +810,15 @@ int renderer_ogl::create()
 	m_init_context = 0;
 
 	osd_printf_verbose("Leave renderer_ogl::create\n");
+
+	// Clear the render target buffers
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	for (int i = 0; i < 4; i++)
+	{
+		glClear(GL_COLOR_BUFFER_BIT);
+		m_gl_context->swap_buffer();
+	}
+
 	return 0;
 }
 

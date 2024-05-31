@@ -156,7 +156,7 @@ void running_machine::start()
 	// create the video manager and UI manager
 	m_video = std::make_unique<video_manager>(*this);
 	m_ui = manager().create_ui(*this);
-	m_ui->set_startup_text("Initializing...", true);
+	// m_ui->set_startup_text("Initializing...", true);
 
 	// initialize the base time (needed for doing record/playback)
 	::time(&m_base_time);

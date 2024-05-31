@@ -643,8 +643,8 @@ void rom_load_manager::display_loading_rom_message(const char *name, bool from_l
 	else
 		buffer = "Loading Complete";
 
-	if (!machine().ui().is_menu_active())
-		machine().ui().set_startup_text(buffer.c_str(), false);
+	// if (!machine().ui().is_menu_active())
+	// 	machine().ui().set_startup_text(buffer.c_str(), false);
 }
 
 
