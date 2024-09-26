@@ -1519,7 +1519,7 @@ int renderer_ogl::draw(const int update)
 				if(pendingPrimitive!=curPrimitive)
 				{
 					if (curPrimitive==GL_POINTS)
-						glPointSize(prim.width);
+						glPointSize(prim.width*2.0f);
 					else
 						glLineWidth(prim.width);
 					glBegin(curPrimitive);
@@ -1529,12 +1529,12 @@ int renderer_ogl::draw(const int update)
 				// check if it's really a point
 				if (curPrimitive==GL_POINTS)
 				{
-					glVertex2f(prim.bounds.x0+hofs, prim.bounds.y0+vofs);
+					glVertex2f(prim.bounds.x0+hofs+0.5f, prim.bounds.y0+vofs+0.5f);
 				}
 				else
 				{
-					glVertex2f(prim.bounds.x0+hofs, prim.bounds.y0+vofs);
-					glVertex2f(prim.bounds.x1+hofs, prim.bounds.y1+vofs);
+					glVertex2f(prim.bounds.x0+hofs+0.5f, prim.bounds.y0+vofs+0.5f);
+					glVertex2f(prim.bounds.x1+hofs+0.5f, prim.bounds.y1+vofs+0.5f);
 				}
 				#else
 				{
@@ -1554,14 +1554,14 @@ int renderer_ogl::draw(const int update)
 					auto [b0, b1] = render_line_to_quad(prim.bounds, effwidth, 0.0f);
 
 					// fix window position
-					b0.x0 += hofs;
-					b0.x1 += hofs;
-					b1.x0 += hofs;
-					b1.x1 += hofs;
-					b0.y0 += vofs;
-					b0.y1 += vofs;
-					b1.y0 += vofs;
-					b1.y1 += vofs;
+					b0.x0 += hofs+0.5f;
+					b0.x1 += hofs+0.5f;
+					b1.x0 += hofs+0.5f;
+					b1.x1 += hofs+0.5f;
+					b0.y0 += vofs+0.5f;
+					b0.y1 += vofs+0.5f;
+					b1.y0 += vofs+0.5f;
+					b1.y1 += vofs+0.5f;
 
 					// iterate over AA steps
 					for (const line_aa_step *step = PRIMFLAG_GET_ANTIALIAS(prim.flags) ? line_aa_4step : line_aa_1step; step->weight != 0; step++)
